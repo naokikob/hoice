@@ -118,7 +118,7 @@ impl RedStrat for ConstProp {
                 // TODO: see why I can't use insert on predmap
                 clause_classified_by_pred.push(position);
             }
-            // 消せるのを見る
+            // check propable argument (index)
             for (var_idx, _typ) in instance[pred_idx].sig.index_iter().filter(|(var_idx, _typ) |self.keep[pred_idx].contains(var_idx)) {
                 println!("{:#?}", var_idx);
             }
@@ -147,7 +147,16 @@ impl RedStrat for ConstProp {
         // ClsMap::<RTerm>
         // ??? pull backはどこでする ???
         // どうやってこれをmodelのところにもっていくか
-        let total_info = RedInfo::new();
-        Ok(total_info)
+
+        // just copied from arg_red
+        // TODO: make this proc outside of this function
+        let mut res = PrdHMap::new();
+        for (pred, vars) in ::std::mem::replace(&mut self.keep, PrdMap::new()).into_index_iter() {
+            if !instance[pred].is_defined() {
+                let prev = res.insert(pred, vars);
+                debug_assert! { prev.is_none() }
+            }
+        }
+        instance.rm_args(res)
     }
 }
