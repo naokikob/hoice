@@ -15,6 +15,7 @@ use crate::{
 pub struct ConstProp {
     // Removed argument position and propagated constant term for removed predicates
     const_terms: PrdMap<(usize, Term)>,
+    keep: PrdMap<VarSet>,
 }
 
 
@@ -30,26 +31,25 @@ impl RedStrat for ConstProp {
     fn name(&self) -> &'static str {
         "const_prop"
     }
-    fn new(instance: &Instance) -> Self {
+    fn new(_instance: &Instance) -> Self {
         ConstProp {
             const_terms: PrdMap::new(),
+            keep: PrdMap::new()
         }
     }
 
     fn apply(&mut self, instance: &mut PreInstance) -> Res<RedInfo> {
+        // TODO: separate initialization
+        self.keep.clear();
         // 消去候補の引数
         'all_preds: for (pred_idx, pred) in instance.preds().index_iter() {
+            self.keep.push(VarSet::new());
             let mut clause_classified_by_pred: ClsMap<Option<Position>> = ClsMap::new();
             println!("predicate {}, {:#?}", pred_idx, pred);
 
+            
             // pred's argument is erasable or not
-            let mut pred_args_propable: VarMap<bool> = {
-                let mut vm = VarMap::with_capacity(instance[pred_idx].sig.len());
-                for _ in 0..instance[pred_idx].sig.len() {
-                    vm.push(true);
-                }
-                vm
-            };
+            
 
             //
 
@@ -78,11 +78,13 @@ impl RedStrat for ConstProp {
                     // check arguments
                     for (rightvaridx, rightarg) in rightargs.index_iter() {
                         for leftargs in leftargss {
-                            pred_args_propable[rightvaridx] &= leftargs[rightvaridx] == *rightarg;
+                            if !(leftargs[rightvaridx] == *rightarg) {
+                                self.keep[pred_idx].insert(rightvaridx);
+                            }
                         }
                     }
-                    // this predicate is not propable
-                    if !pred_args_propable.iter().fold(false, |acc, &e| acc || e) {
+                    // check already this predicate is not propable
+                    if self.keep.len() == instance[pred_idx].sig.len() {
                         continue 'all_preds;
                     }
                     Some(Position::Both)
@@ -98,8 +100,17 @@ impl RedStrat for ConstProp {
                             panic!("{}-clause rhs is broken", cls_idx);
                         };
                         for (rightvaridx, rightarg) in rightargs.index_iter() {
-                            pred_args_propable[rightvaridx] &= rightarg.val().is_some();
+                            // pred_args_propable[rightvaridx] &= rightarg.val().is_some();
+                            // TODO: check val().is_some() is equivalent to be constant 
+                            if !rightarg.val().is_some() {
+                                self.keep[pred_idx].insert(rightvaridx);
+                            }
                         }
+                        // check already this predicate is not propable
+                        if self.keep.len() == instance[pred_idx].sig.len() {
+                            continue 'all_preds;
+                        }
+
                     Some(Position::Right)
                 } else {
                     None
@@ -108,7 +119,7 @@ impl RedStrat for ConstProp {
                 clause_classified_by_pred.push(position);
             }
             // 消せるのを見る
-            for (var_idx, _b) in pred_args_propable.index_iter().filter(|(_vid, &b)| b) {
+            for (var_idx, _typ) in instance[pred_idx].sig.index_iter().filter(|(var_idx, _typ) |self.keep[pred_idx].contains(var_idx)) {
                 println!("{:#?}", var_idx);
             }
         }
