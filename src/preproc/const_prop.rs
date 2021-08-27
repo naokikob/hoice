@@ -13,17 +13,11 @@ use crate::{
 };
 
 pub struct ConstProp {
-    // Removed argument position and propagated term for removed predicates
+    // Removed argument position and propagated constant term for removed predicates
     const_terms: PrdMap<(usize, Term)>,
 }
 
-pub struct FlowGraph;
 
-impl FlowGraph {
-    pub fn new(_instance: &Instance) -> Self {
-        FlowGraph
-    }
-}
 
 #[derive(Hash, Debug, Clone, Copy)]
 enum Position {
@@ -70,17 +64,24 @@ impl RedStrat for ConstProp {
                 let left = pred_apps.contains_key(&pred_idx);
                 let position = if left && right {
                     // check propable
+                    // TODO: proper error handling
                     let leftargss = &clause.lhs_preds()[&pred_idx];
-                    let rightargs = clause
-                        .rhs()
-                        .expect(&format!("{}-clause rhs is broken", cls_idx))
-                        .1;
+                    let rightargs = 
+                    if let Some((_prdidx, rightargs)) = clause
+                        .rhs() {
+                            rightargs 
+                        }else {
+                            panic!("{}-clause rhs is broken", cls_idx);
+                        };
+                        
+                        
                     // check arguments
                     for (rightvaridx, rightarg) in rightargs.index_iter() {
                         for leftargs in leftargss {
                             pred_args_propable[rightvaridx] &= leftargs[rightvaridx] == *rightarg;
                         }
                     }
+                    // this predicate is not propable
                     if !pred_args_propable.iter().fold(false, |acc, &e| acc || e) {
                         continue 'all_preds;
                     }
@@ -88,6 +89,17 @@ impl RedStrat for ConstProp {
                 } else if left {
                     Some(Position::Left)
                 } else if right {
+                    // check if the argument is constant.
+                    let rightargs = 
+                    if let Some((_prdidx, rightargs)) = clause
+                        .rhs() {
+                            rightargs 
+                        }else {
+                            panic!("{}-clause rhs is broken", cls_idx);
+                        };
+                        for (rightvaridx, rightarg) in rightargs.index_iter() {
+                            pred_args_propable[rightvaridx] &= rightarg.val().is_some();
+                        }
                     Some(Position::Right)
                 } else {
                     None
@@ -108,8 +120,8 @@ impl RedStrat for ConstProp {
         // - 右辺にのみ現れる(right)
         // - 左辺にのみ現れる(left)
         // # 引数が伝播できるかを見る(check_constpropable??)
-        // implicationだけみる
-        // にわけて, 両辺に現れる節すべてで, 両辺の呼び出しで引数が同じTerm
+        // implicationの両辺に現れる節すべてで, 両辺の呼び出しで引数が同じTerm
+        // かつ, すべてのrightで定数
         // なら消せる
         // # 消せる時(prop_arg)
         // rightの同じ位置のTerm ri_jを全部集めて, ただ消す
