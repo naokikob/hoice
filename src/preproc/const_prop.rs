@@ -13,18 +13,12 @@ use crate::{
 };
 
 pub struct ConstProp {
-    // Removed argument position and propagated constant term for removed predicates
-    const_terms: PrdMap<VarMap<TermSet>>,
-
-    lhs_propable_arguments: ClsMap<PrdMap<VarMap<TermSet>>>,
+    /// Predicate arguments to keep.
     keep: PrdMap<VarSet>,
-}
-
-#[derive(Hash, Debug, Clone, Copy)]
-enum Position {
-    Both,
-    Left,
-    Right,
+    /// Propagated constant terms for removed predicates
+    const_terms: PrdMap<VarMap<TermSet>>,
+    /// removed arguments of clauses on which propagated predicates appear
+    lhs_propable_arguments: ClsMap<PrdMap<VarMap<TermSet>>>,
 }
 
 impl RedStrat for ConstProp {
@@ -40,105 +34,89 @@ impl RedStrat for ConstProp {
     }
 
     // 1. check arguments are constant propagatable or not, per predicates
+    //    if it's propable, collect const_terms and left clauses' arguments
     // 2. create and add constant constraints to lhs_terms of
     //    propagatable arguments of predicates
     // 3. remove arguments
     // TODO: add constant constraints to model
     fn apply(&mut self, instance: &mut PreInstance) -> Res<RedInfo> {
-        // TODO: separate initialization
-        self.keep.clear();
-        'all_preds: for (pred_idx, pred) in instance.preds().index_iter() {
-            self.keep.push(VarSet::new());
-            self.const_terms.push(VarMap::new());
-            let mut clause_classified_by_pred: ClsMap<Option<Position>> = ClsMap::new();
-            println!("predicate {}, {:#?}", pred_idx, pred);
+        self.init(&instance);
+        'all_preds: for (pred_idx, _pred) in instance.preds().index_iter() {
+            // println!("predicate {}, {:#?}", pred_idx, pred);
 
-            // 1. check arguments are constant propagatable or not, per predicates
+            // 1. check whether arguments are constant propagatable or not, per predicates
+            // TODO: remove loop by using Instance::clauses_of(p: Pred)
+            let (left_clauses, right_clauses) = instance.clauses_of(pred_idx);
+            for &cls_idx in left_clauses.intersection(&right_clauses) {
+                // check propable
+                // TODO: proper error handling
+                let leftargss = &instance[cls_idx].lhs_preds()[&pred_idx];
+                let (_p, rightargs) = instance[cls_idx]
+                    .rhs()
+                    .expect(&format!("{}-clause rhs is broken", cls_idx));
 
-            for (cls_idx, clause) in instance.clauses().index_iter() {
-                // println!("{:#?}", instance.preds_of_clause(cls_idx));
-                // TODO: remove loop by using Instance::clauses_of(p: Pred)
-                let (pred_apps, head_pred_idx_op) = instance.preds_of_clause(cls_idx);
-
-                let right = match head_pred_idx_op {
-                    Some(h_idx) if h_idx == pred_idx => true,
-                    _ => false,
-                };
-                let left = pred_apps.contains_key(&pred_idx);
-                let position = if left && right {
-                    // check propable
-                    // TODO: proper error handling
-                    let leftargss = &clause.lhs_preds()[&pred_idx];
-                    let rightargs = if let Some((_prdidx, rightargs)) = clause.rhs() {
-                        rightargs
-                    } else {
-                        panic!("{}-clause rhs is broken", cls_idx);
-                    };
-
-                    // check arguments
-                    for (rightvaridx, rightarg) in rightargs.index_iter() {
-                        for leftargs in leftargss {
-                            if !(leftargs[rightvaridx] == *rightarg) {
-                                self.keep[pred_idx].insert(rightvaridx);
-                            }
-                        }
-                    }
-                    Some(Position::Both)
-                } else if left {
-                    Some(Position::Left)
-                } else if right {
-                    // check if the argument is constant.
-                    let rightargs = if let Some((_prdidx, rightargs)) = clause.rhs() {
-                        rightargs
-                    } else {
-                        panic!("{}-clause rhs is broken", cls_idx);
-                    };
-                    for (rightvaridx, rightarg) in rightargs.index_iter() {
-                        // assemble constnat terms
-                        // TODO: confirm val().is_some() is equivalent to be constant
-                        match rightarg.val() {
-                            Some(cst) => {
-                                let cst_term =
-                                    cst.to_term().expect("failed to create const terms ");
-                                self.const_terms[pred_idx][rightvaridx].insert(cst_term);
-                            }
-                            None => drop(self.keep[pred_idx].insert(rightvaridx)),
-                        }
-                    }
-                    Some(Position::Right)
-                } else {
-                    None
-                };
-
-                // check already this predicate is not propable
-                if self.keep.len() == instance[pred_idx].sig.len() {
-                    continue 'all_preds;
-                }
-                // TODO: see why I can't use insert on predmap
-                clause_classified_by_pred.push(position);
-            }
-
-            // 2. create and add constant constraints
-            // collect lhs's propable argument per one clause and
-            // add term which corresponds to constant conditions
-
-            for (var_idx, _typ) in instance[pred_idx].sig.index_iter() {
-                if self.keep[pred_idx].contains(&var_idx) {
-                    continue;
-                }
-                // collect argument from every appearance of pred in lhs
-                for &cls_idx in instance.lhs_clauses_of(pred_idx) {
-                    let leftargss = &instance[cls_idx].lhs_preds()[&pred_idx];
+                // check arguments
+                for (rightvaridx, rightarg) in rightargs.index_iter() {
                     for leftargs in leftargss {
-                        self.lhs_propable_arguments[cls_idx][pred_idx][var_idx]
-                            .insert(leftargs[var_idx].clone());
+                        if !(leftargs[rightvaridx] == *rightarg) {
+                            self.keep[pred_idx].insert(rightvaridx);
+                        }
                     }
                 }
             }
+            // check if this predicate is already known to be not propable
+            if self.keep.len() == instance[pred_idx].sig.len() {
+                continue 'all_preds;
+            }
+
+            for &cls_idx in right_clauses.difference(&left_clauses) {
+                let (_p, rightargs) = instance[cls_idx]
+                    .rhs()
+                    .expect(&format!("{}-clause rhs is broken", cls_idx));
+                for (rightvaridx, rightarg) in rightargs.index_iter() {
+                    // assemble constnat terms
+                    // TODO: confirm val().is_some() is equivalent to be constant
+                    match rightarg.val() {
+                        Some(cst) => {
+                            let cst_term = cst
+                                .to_term()
+                                .expect("failed to convert val to const terms ");
+                            // TODO: init properly because rightvaridx access is failed
+
+                            // self.const_terms[pred_idx].insert(*rightvaridx, TermSet::new());
+                            self.const_terms[pred_idx][rightvaridx].insert(cst_term);
+                        }
+                        None => {
+                            self.keep[pred_idx].insert(rightvaridx);
+                        }
+                    }
+                }
+            }
+            // check if this predicate is already known to be not propable
+            if self.keep.len() == instance[pred_idx].sig.len() {
+                continue 'all_preds;
+            }
+
+            // collect propagatable arguments
+
+            // for (var_idx, _typ) in instance[pred_idx].sig.index_iter() {
+            //     if self.keep[pred_idx].contains(&var_idx) {
+            //         continue;
+            //     }
+
+            //     // collect argument from every appearance of pred in lhs
+            //     for &cls_idx in instance.lhs_clauses_of(pred_idx) {
+            //         let leftargss = &instance[cls_idx].lhs_preds()[&pred_idx];
+            //         for leftargs in leftargss {
+            //             self.lhs_propable_arguments[cls_idx][pred_idx][var_idx]
+            //                 .insert(leftargs[var_idx].clone());
+            //         }
+            //     }
+            // }
         }
 
         // DEBUG print propable argument (index)
-        for (pred_idx, pred) in instance.preds().index_iter() {
+        for (pred_idx, _pred) in instance.preds().index_iter() {
             for (var_idx, _typ) in instance[pred_idx]
                 .sig
                 .index_iter()
@@ -148,17 +126,77 @@ impl RedStrat for ConstProp {
             }
         }
 
-        // 3. remove arguments
-        // just copied from arg_red
-        // TODO: make this proc outside of this function
-        let mut res = PrdHMap::new();
-        for (pred, vars) in ::std::mem::replace(&mut self.keep, PrdMap::new()).into_index_iter() {
-            if !instance[pred].is_defined() {
-                let prev = res.insert(pred, vars);
-                debug_assert! { prev.is_none() }
-            }
-        }
+        // create disjunction of constant conditions and add to clauses
+        // for (cls_idx, propable_pred_arguments) in self.lhs_propable_arguments.index_iter() {
+        //     for (pred_idx, propable_arguments) in propable_pred_arguments.index_iter() {
+        //         for (var_idx, argterms) in propable_arguments.index_iter() {
+        //             if self.keep[pred_idx].contains(&var_idx) {
+        //                 continue;
+        //             }
+        //             for argterm in argterms {
+        //                 let mut disj = vec![];
+        //                 for cst in &self.const_terms[pred_idx][var_idx] {
+        //                     disj.push(term::eq(argterm.clone(), cst.clone()))
+        //                 }
+        //                 instance[cls_idx].insert_term(term::or(disj));
+        //             }
+        //         }
+        //     }
+        // }
+
+        // // 3. remove arguments
+        // // just copied from arg_red
+        // // TODO: make this proc outside of this function
+        // let mut res = PrdHMap::new();
+        // for (pred, vars) in ::std::mem::replace(&mut self.keep, PrdMap::new()).into_index_iter() {
+        //     if !instance[pred].is_defined() {
+        //         let prev = res.insert(pred, vars);
+        //         debug_assert! { prev.is_none() }
+        //     }
+        // }
         // TODO: add terms to lhs of above
-        instance.rm_args(res)
+        Ok(RedInfo::new())
+        // instance.rm_args(res)
+    }
+}
+impl ConstProp {
+    #[allow(dead_code)]
+    fn print(&mut self, instance: &Instance) {
+        println!("keep {{");
+        for (pred, vars) in self.keep.index_iter() {
+            if instance[pred].is_defined() {
+                continue;
+            }
+            print!("  {}:", instance[pred]);
+            for var in vars {
+                print!(" {},", var.default_str())
+            }
+            println!()
+        }
+        // println!("}} clauses {{") ;
+        // for (idx, _) in instance.clauses().index_iter() {
+
+        // }
+        println!("}}")
+    }
+
+    fn init(&mut self, instance: &Instance) {
+        self.const_terms.clear();
+        self.lhs_propable_arguments.clear();
+        self.keep.clear();
+
+        // Empty set for each predicate.
+        for (_pred_idx, p) in instance.preds().index_iter() {
+            self.keep.push(VarSet::new());
+            let mut v = VarMap::new();
+            for _ in 0..p.sig.len() {
+                v.push(TermSet::new());
+            }
+            self.const_terms.push(v);
+        }
+        // TODO:
+        // for _ in instance.clauses() {
+        //     self.lhs_propable_arguments.push(PrdMap::new());
+        // }
     }
 }
