@@ -1,5 +1,7 @@
 //! Variable elimination by Constant Propagation
 
+use rsmt2::print;
+
 /// [A Graph-Free Approach to Data-Flow Analysis][paper].
 ///
 /// [paper]: https://link.springer.com/chapter/10.1007/3-540-45937-5_6
@@ -75,14 +77,8 @@ impl RedStrat for ConstProp {
                     // assemble constnat terms
                     // TODO: confirm val().is_some() is equivalent to be constant
                     match rightarg.val() {
-                        Some(cst) => {
-                            let cst_term = cst
-                                .to_term()
-                                .expect("failed to convert val to const terms ");
-                            // TODO: init properly because rightvaridx access is failed
-
-                            // self.const_terms[pred_idx].insert(*rightvaridx, TermSet::new());
-                            self.const_terms[pred_idx][rightvaridx].insert(cst_term);
+                        Some(_cstval) => {
+                            self.const_terms[pred_idx][rightvaridx].insert(rightarg.clone());
                         }
                         None => {
                             self.keep[pred_idx].insert(rightvaridx);
@@ -96,14 +92,16 @@ impl RedStrat for ConstProp {
             }
 
             // collect propagatable arguments
-
             for (var_idx, _typ) in instance[pred_idx].sig.index_iter() {
                 // this var is not propable
                 if self.keep[pred_idx].contains(&var_idx) {
                     continue;
                 }
                 // create constant conditions to add
-                for &cls_idx in instance.lhs_clauses_of(pred_idx) {
+                for &cls_idx in instance
+                    .lhs_clauses_of(pred_idx)
+                    .difference(&instance.rhs_clauses_of(pred_idx))
+                {
                     let leftargss = &instance[cls_idx].lhs_preds()[&pred_idx];
                     let mut cst_conds = TermSet::new();
 
@@ -113,43 +111,56 @@ impl RedStrat for ConstProp {
                             disj.push(term::eq(leftargs[var_idx].clone(), cst.clone()))
                         }
                         cst_conds.insert(term::or(disj));
-                        // self.lhs_propable_arguments[cls_idx][pred_idx][var_idx]
-                        //     .insert(leftargs[var_idx].clone());
                     }
+                    println!(
+                        "{}-clause {}-pred {}-arg const cnd: {:#?}",
+                        cls_idx, pred_idx, var_idx, cst_conds
+                    );
                     const_conditions.insert(cls_idx, cst_conds);
                 }
             }
         }
 
-        // DEBUG print propable argument (index)
-        // for (pred_idx, _pred) in instance.preds().index_iter() {
-        //     for (var_idx, _typ) in instance[pred_idx]
-        //         .sig
-        //         .index_iter()
-        //         .filter(|(var_idx, _typ)| !self.keep[pred_idx].contains(var_idx))
-        //     {
-        //         println!("{:#?}", var_idx);
-        //     }
-        // }
+        // DEBUG print propable arguments (indeces) and corresponding
+        for (pred_idx, _pred) in instance.preds().index_iter() {
+            for (var_idx, _typ) in instance[pred_idx]
+                .sig
+                .index_iter()
+                .filter(|(var_idx, _typ)| !self.keep[pred_idx].contains(var_idx))
+            {
+                println!("{:#?}", var_idx);
+            }
+        }
+
+        return Ok(RedInfo::new());
 
         // add constant conditions to clauses
-        // for (cls_idx, cst_conds) in const_conditions {
-        //     for cond in cst_conds {
-        //         instance[cls_idx].insert_term(cond);
-        //     }
-        // }
+        for (cls_idx, cst_conds) in const_conditions {
+            for cond in cst_conds {
+                instance[cls_idx].insert_term(cond);
+            }
+        }
 
         // // 3. remove arguments
         // // just copied from arg_red
         // // TODO: make this proc outside of this function
-        // let mut res = PrdHMap::new();
-        // for (pred, vars) in ::std::mem::replace(&mut self.keep, PrdMap::new()).into_index_iter() {
-        //     if !instance[pred].is_defined() {
-        //         let prev = res.insert(pred, vars);
-        //         debug_assert! { prev.is_none() }
-        //     }
-        // }
-        // instance.rm_args(res)
+        let mut res = PrdHMap::new();
+        for (pred, vars) in ::std::mem::replace(&mut self.keep, PrdMap::new()).into_index_iter() {
+            if !instance[pred].is_defined() {
+                let prev = res.insert(pred, vars);
+                debug_assert! { prev.is_none() }
+            }
+        }
+        let redinfo = instance.rm_args(res);
+
+        // check result clauses
+        for (cls_idx, _cst_conds) in instance.clauses().index_iter() {
+            instance[cls_idx].expr_to_smt2(
+                &mut stdout(),
+                &(true, &PrdSet::new(), &PrdSet::new(), &instance.preds()),
+            );
+        }
+
         Ok(RedInfo::new())
     }
 }
