@@ -41,11 +41,9 @@ impl RedStrat for ConstProp {
     // TODO: add constant constraints to model
     fn apply(&mut self, instance: &mut PreInstance) -> Res<RedInfo> {
         self.init(&instance);
+        let mut const_conditions = ClsHMap::<TermSet>::new();
         'all_preds: for (pred_idx, _pred) in instance.preds().index_iter() {
-            // println!("predicate {}, {:#?}", pred_idx, pred);
-
             // 1. check whether arguments are constant propagatable or not, per predicates
-            // TODO: remove loop by using Instance::clauses_of(p: Pred)
             let (left_clauses, right_clauses) = instance.clauses_of(pred_idx);
             for &cls_idx in left_clauses.intersection(&right_clauses) {
                 // check propable
@@ -99,20 +97,28 @@ impl RedStrat for ConstProp {
 
             // collect propagatable arguments
 
-            // for (var_idx, _typ) in instance[pred_idx].sig.index_iter() {
-            //     if self.keep[pred_idx].contains(&var_idx) {
-            //         continue;
-            //     }
+            for (var_idx, _typ) in instance[pred_idx].sig.index_iter() {
+                // this var is not propable
+                if self.keep[pred_idx].contains(&var_idx) {
+                    continue;
+                }
+                // create constant conditions to add
+                for &cls_idx in instance.lhs_clauses_of(pred_idx) {
+                    let leftargss = &instance[cls_idx].lhs_preds()[&pred_idx];
+                    let mut cst_conds = TermSet::new();
 
-            //     // collect argument from every appearance of pred in lhs
-            //     for &cls_idx in instance.lhs_clauses_of(pred_idx) {
-            //         let leftargss = &instance[cls_idx].lhs_preds()[&pred_idx];
-            //         for leftargs in leftargss {
-            //             self.lhs_propable_arguments[cls_idx][pred_idx][var_idx]
-            //                 .insert(leftargs[var_idx].clone());
-            //         }
-            //     }
-            // }
+                    for leftargs in leftargss {
+                        let mut disj = vec![];
+                        for cst in &self.const_terms[pred_idx][var_idx] {
+                            disj.push(term::eq(leftargs[var_idx].clone(), cst.clone()))
+                        }
+                        cst_conds.insert(term::or(disj));
+                        // self.lhs_propable_arguments[cls_idx][pred_idx][var_idx]
+                        //     .insert(leftargs[var_idx].clone());
+                    }
+                    const_conditions.insert(cls_idx, cst_conds);
+                }
+            }
         }
 
         // DEBUG print propable argument (index)
