@@ -122,31 +122,20 @@ impl RedStrat for ConstProp {
         }
 
         // DEBUG print propable argument (index)
-        for (pred_idx, _pred) in instance.preds().index_iter() {
-            for (var_idx, _typ) in instance[pred_idx]
-                .sig
-                .index_iter()
-                .filter(|(var_idx, _typ)| !self.keep[pred_idx].contains(var_idx))
-            {
-                println!("{:#?}", var_idx);
-            }
-        }
+        // for (pred_idx, _pred) in instance.preds().index_iter() {
+        //     for (var_idx, _typ) in instance[pred_idx]
+        //         .sig
+        //         .index_iter()
+        //         .filter(|(var_idx, _typ)| !self.keep[pred_idx].contains(var_idx))
+        //     {
+        //         println!("{:#?}", var_idx);
+        //     }
+        // }
 
-        // create disjunction of constant conditions and add to clauses
-        // for (cls_idx, propable_pred_arguments) in self.lhs_propable_arguments.index_iter() {
-        //     for (pred_idx, propable_arguments) in propable_pred_arguments.index_iter() {
-        //         for (var_idx, argterms) in propable_arguments.index_iter() {
-        //             if self.keep[pred_idx].contains(&var_idx) {
-        //                 continue;
-        //             }
-        //             for argterm in argterms {
-        //                 let mut disj = vec![];
-        //                 for cst in &self.const_terms[pred_idx][var_idx] {
-        //                     disj.push(term::eq(argterm.clone(), cst.clone()))
-        //                 }
-        //                 instance[cls_idx].insert_term(term::or(disj));
-        //             }
-        //         }
+        // add constant conditions to clauses
+        // for (cls_idx, cst_conds) in const_conditions {
+        //     for cond in cst_conds {
+        //         instance[cls_idx].insert_term(cond);
         //     }
         // }
 
@@ -160,9 +149,8 @@ impl RedStrat for ConstProp {
         //         debug_assert! { prev.is_none() }
         //     }
         // }
-        // TODO: add terms to lhs of above
-        Ok(RedInfo::new())
         // instance.rm_args(res)
+        Ok(RedInfo::new())
     }
 }
 impl ConstProp {
@@ -200,9 +188,5 @@ impl ConstProp {
             }
             self.const_terms.push(v);
         }
-        // TODO:
-        // for _ in instance.clauses() {
-        //     self.lhs_propable_arguments.push(PrdMap::new());
-        // }
     }
 }
