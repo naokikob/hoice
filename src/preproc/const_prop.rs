@@ -52,21 +52,17 @@ impl RedStrat for ConstProp {
             let both_clauses: HashSet<&ClsIdx> =
                 left_clauses.intersection(&right_clauses).collect();
             // when intersection count is zero
-            if both_clauses.len() == 0 {
-                // TODO
-            } else {
-                for &cls_idx in both_clauses {
-                    let leftargss = &instance[cls_idx].lhs_preds()[&pred_idx];
-                    let (_p, rightargs) = instance[cls_idx]
-                        .rhs()
-                        .expect(&format!("{}-clause rhs is broken", cls_idx));
+            for &cls_idx in both_clauses {
+                let leftargss = &instance[cls_idx].lhs_preds()[&pred_idx];
+                let (_p, rightargs) = instance[cls_idx]
+                    .rhs()
+                    .expect(&format!("{}-clause rhs is broken", cls_idx));
 
-                    // check arguments
-                    for (rightvaridx, rightarg) in rightargs.index_iter() {
-                        for leftargs in leftargss {
-                            if !(leftargs[rightvaridx] == *rightarg) {
-                                self.keep[pred_idx].insert(rightvaridx);
-                            }
+                // check arguments
+                for (rightvaridx, rightarg) in rightargs.index_iter() {
+                    for leftargs in leftargss {
+                        if leftargs[rightvaridx] != *rightarg {
+                            self.keep[pred_idx].insert(rightvaridx);
                         }
                     }
                 }
@@ -84,26 +80,25 @@ impl RedStrat for ConstProp {
                     self.keep[pred_idx].insert(vid);
                 }
                 continue 'all_preds;
-            } else {
-                for &cls_idx in only_rhs_clauses {
-                    let (_p, rightargs) = instance[cls_idx]
-                        .rhs()
-                        .expect(&format!("{}-clause rhs is broken", cls_idx));
-                    for (rightvaridx, rightarg) in rightargs.index_iter() {
-                        // assemble constnat terms
-                        // TODO: confirm RTerm::val(self).is_some() is equivalent to be constant
-                        match rightarg.val() {
-                            Some(_cstval) => {
-                                self.const_terms[pred_idx][rightvaridx].insert(rightarg.clone());
-                            }
-                            None => {
-                                self.keep[pred_idx].insert(rightvaridx);
-                            }
+            }
+            for &cls_idx in only_rhs_clauses {
+                let (_p, rightargs) = instance[cls_idx]
+                    .rhs()
+                    .expect(&format!("{}-clause rhs is broken", cls_idx));
+                for (rightvaridx, rightarg) in rightargs.index_iter() {
+                    // assemble constnat terms
+                    // TODO: confirm RTerm::val(self).is_some() is equivalent to be constant
+                    match rightarg.val() {
+                        Some(_cstval) => {
+                            self.const_terms[pred_idx][rightvaridx].insert(rightarg.clone());
                         }
-                        // temporary ignore the case constants are more than two kinds.
-                        if 2 <= self.const_terms[pred_idx][rightvaridx].len() {
+                        None => {
                             self.keep[pred_idx].insert(rightvaridx);
                         }
+                    }
+                    // temporary ignore the case constants are more than two kinds.
+                    if 2 <= self.const_terms[pred_idx][rightvaridx].len() {
+                        self.keep[pred_idx].insert(rightvaridx);
                     }
                 }
             }
