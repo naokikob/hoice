@@ -47,9 +47,9 @@ impl RedStrat for ConstProp {
         'all_preds: for (pred_idx, _pred) in instance.preds().index_iter() {
             // 1. check whether arguments are constant propagatable or not, per predicates
             let (left_clauses, right_clauses) = instance.clauses_of(pred_idx);
+            // check the existence of constant expression in arguments on implication clauses
+            // TODO: proper error handling
             for &cls_idx in left_clauses.intersection(&right_clauses) {
-                // check propable
-                // TODO: proper error handling
                 let leftargss = &instance[cls_idx].lhs_preds()[&pred_idx];
                 let (_p, rightargs) = instance[cls_idx]
                     .rhs()
@@ -68,7 +68,7 @@ impl RedStrat for ConstProp {
             if self.keep.len() == instance[pred_idx].sig.len() {
                 continue 'all_preds;
             }
-
+            // check rhs-clauses is a single constant ()
             for &cls_idx in right_clauses.difference(&left_clauses) {
                 let (_p, rightargs) = instance[cls_idx]
                     .rhs()
@@ -84,6 +84,11 @@ impl RedStrat for ConstProp {
                             self.keep[pred_idx].insert(rightvaridx);
                         }
                     }
+                    // temporary ignore the case constants are more than two kinds.
+                    if 2 <= self.const_terms[pred_idx][rightvaridx].len() {
+                        self.keep[pred_idx].insert(rightvaridx);
+                        continue 'all_preds;
+                    }
                 }
             }
             // check if this predicate is already known to be not propable
@@ -93,10 +98,11 @@ impl RedStrat for ConstProp {
 
             // collect propagatable arguments
             for (var_idx, _typ) in instance[pred_idx].sig.index_iter() {
-                // this var is not propable
+                // this aregument is not propable
                 if self.keep[pred_idx].contains(&var_idx) {
                     continue;
                 }
+
                 // create constant conditions to add
                 for &cls_idx in instance
                     .lhs_clauses_of(pred_idx)
@@ -106,11 +112,15 @@ impl RedStrat for ConstProp {
                     let mut cst_conds = TermSet::new();
 
                     for leftargs in leftargss {
-                        let mut disj = vec![];
+                        // let mut disj = vec![];
+                        // for cst in &self.const_terms[pred_idx][var_idx] {
+                        //     disj.push(term::eq(leftargs[var_idx].clone(), cst.clone()))
+                        // }
+                        // cst_conds.insert(term::or(disj));
+                        debug_assert!(self.const_terms[pred_idx][var_idx].len() == 1);
                         for cst in &self.const_terms[pred_idx][var_idx] {
-                            disj.push(term::eq(leftargs[var_idx].clone(), cst.clone()))
+                            cst_conds.insert(term::eq(leftargs[var_idx].clone(), cst.clone()));
                         }
-                        cst_conds.insert(term::or(disj));
                     }
                     println!(
                         "{}-clause {}-pred {}-arg const cnd: {:#?}",
@@ -118,17 +128,6 @@ impl RedStrat for ConstProp {
                     );
                     const_conditions.insert(cls_idx, cst_conds);
                 }
-            }
-        }
-
-        // DEBUG print propable arguments (indeces) and corresponding
-        for (pred_idx, _pred) in instance.preds().index_iter() {
-            for (var_idx, _typ) in instance[pred_idx]
-                .sig
-                .index_iter()
-                .filter(|(var_idx, _typ)| !self.keep[pred_idx].contains(var_idx))
-            {
-                println!("{:#?}", var_idx);
             }
         }
 
