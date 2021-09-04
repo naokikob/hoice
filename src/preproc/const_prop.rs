@@ -3,8 +3,8 @@
 /// Argument Reduction by propagating consistent constants on the pure-rhs clauses.
 ///
 /// An argument of some predicate is propagatable if
-/// 1. Expressions appears on the same argument positions are invariant on implication clauses(a predicate application appears on both sides of clause).
-/// 2. It is a consistent constant on all of pure-rhs clauses(a predicate application appears on only rhs of clause).
+/// 1. (implication invariant condition)Expressions appears on the same argument positions are invariant on implication clauses(a predicate application appears on both sides of clause).
+/// 2. (rhs constant condition)It is a consistent constant on all of pure-rhs clauses(a predicate application appears on only rhs of clause).
 /// # Examples
 ///
 /// ```rust
@@ -48,45 +48,17 @@ impl RedStrat for ConstProp {
         // arguments' constant conditions to add pure lhs clauses
         let mut const_conditions = ClsHMap::<TermSet>::new();
         for (pred_idx, _pred) in instance.preds().index_iter() {
-            // 1. check whether arguments are constant propagatable or not, per predicates
-            if self.implication_condition(instance, pred_idx)
+            // 1. check if arguments are constant propagatable, per predicate
+            if self.implication_invariant_condition(instance, pred_idx)
                 && self.rhs_constant_condition(instance, pred_idx)
             {
-            } else {
-                continue;
-            }
-            // collect propagatable arguments
-            for (var_idx, _typ) in instance[pred_idx].sig.index_iter() {
-                // this aregument is not propable
-                if self.keep[pred_idx].contains(&var_idx) {
-                    continue;
-                }
-
-                // create constant conditions to add
-                for &cls_idx in instance
-                    .lhs_clauses_of(pred_idx)
-                    .difference(&instance.rhs_clauses_of(pred_idx))
-                {
-                    let leftargss = &instance[cls_idx].lhs_preds()[&pred_idx];
-                    let mut cst_conds = TermSet::new();
-
-                    for leftargs in leftargss {
-                        debug_assert!(self.const_terms[pred_idx][var_idx].len() == 1);
-                        for cst in &self.const_terms[pred_idx][var_idx] {
-                            cst_conds.insert(term::eq(leftargs[var_idx].clone(), cst.clone()));
-                        }
+                let const_conditions = self.constant_conditions(instance, pred_idx);
+                // add constant conditions to clauses
+                for (cls_idx, cst_conds) in const_conditions {
+                    for cond in cst_conds {
+                        instance[cls_idx].insert_term(cond);
                     }
-                    const_conditions.insert(cls_idx, cst_conds);
                 }
-            }
-        }
-
-        // return Ok(RedInfo::new());
-
-        // add constant conditions to clauses
-        for (cls_idx, cst_conds) in const_conditions {
-            for cond in cst_conds {
-                instance[cls_idx].insert_term(cond);
             }
         }
 
@@ -144,10 +116,10 @@ impl ConstProp {
         }
     }
 
-    /// Checks if implication condition for a predicate.
+    /// Checks if implication invariant condition for a predicate.
     ///
     /// Returns `true` if some argument satisfies the condition
-    fn implication_condition(&mut self, instance: &Instance, pred: PrdIdx) -> bool {
+    fn implication_invariant_condition(&mut self, instance: &Instance, pred: PrdIdx) -> bool {
         let (lhs_clauses, rhs_clauses) = instance.clauses_of(pred);
         let implication_clauses: HashSet<&ClsIdx> =
             lhs_clauses.intersection(&rhs_clauses).collect();
@@ -158,8 +130,6 @@ impl ConstProp {
                 .rhs()
                 .expect(&format!("{}-clause rhs is broken", cls_idx));
             debug_assert!(p == pred);
-
-            // check arguments
             'all_arg: for (rightvaridx, rightarg) in rightargs.index_iter() {
                 for leftargs in leftargss {
                     if leftargs[rightvaridx] != *rightarg {
@@ -172,6 +142,9 @@ impl ConstProp {
         self.keep[pred].len() < instance[pred].sig.len()
     }
 
+    /// Checks if rhs constant condition for a predicate.
+    ///
+    /// Returns `true` if some argument satisfies the condition
     fn rhs_constant_condition(&mut self, instance: &Instance, pred: PrdIdx) -> bool {
         let (lhs_clauses, rhs_clauses) = instance.clauses_of(pred);
         let pure_rhs_clauses: HashSet<&ClsIdx> = rhs_clauses.difference(&lhs_clauses).collect();
@@ -208,5 +181,33 @@ impl ConstProp {
         }
 
         self.keep[pred].len() < instance[pred].sig.len()
+    }
+
+    fn constant_conditions(&mut self, instance: &Instance, pred: PrdIdx) -> ClsHMap<TermSet> {
+        let mut const_conditions = ClsHMap::<TermSet>::new();
+        for (var_idx, _typ) in instance[pred].sig.index_iter() {
+            // this aregument is not propable
+            if self.keep[pred].contains(&var_idx) {
+                continue;
+            }
+
+            // create constant conditions to add
+            for &cls_idx in instance
+                .lhs_clauses_of(pred)
+                .difference(&instance.rhs_clauses_of(pred))
+            {
+                let leftargss = &instance[cls_idx].lhs_preds()[&pred];
+                let mut cst_conds = TermSet::new();
+
+                for leftargs in leftargss {
+                    debug_assert!(self.const_terms[pred][var_idx].len() == 1);
+                    for cst in &self.const_terms[pred][var_idx] {
+                        cst_conds.insert(term::eq(leftargs[var_idx].clone(), cst.clone()));
+                    }
+                }
+                const_conditions.insert(cls_idx, cst_conds);
+            }
+        }
+        const_conditions
     }
 }
