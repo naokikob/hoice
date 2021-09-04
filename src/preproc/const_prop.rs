@@ -1,13 +1,19 @@
 //! Constant Propagation based Argument Reduction
 
-/// Eliminate arguments which are consistent constants on the pure-rhs clauses
+/// Argument Reduction by propagating consistent constants on the pure-rhs clauses.
 ///
+/// An argument of some predicate is propagatable if
+/// 1. It is a consistent constant on all of pure-rhs clauses(a predicate application appears on only rhs of clause).
+/// 2. Expressions appears on the same argument positions are invariant on implication clauses(a predicate application appears on both sides of clause).
 /// # Examples
 ///
 /// ```rust
 /// // See this file for a non-trivial example.
 /// ::std::fs::OpenOptions::new().read(true).open("rsc/unsat/const_prop.smt2").unwrap();
 /// ```
+/// # TODO
+/// - check the soundness
+/// - check the dependencies between other preprocess methods
 use crate::{
     common::*,
     preproc::{PreInstance, RedStrat},
@@ -16,7 +22,7 @@ use crate::{
 pub struct ConstProp {
     /// Predicate arguments to keep.
     keep: PrdMap<VarSet>,
-    /// Propagated constant terms for removed predicates
+    /// Propagated constant terms for each predicates
     const_terms: PrdMap<VarMap<TermSet>>,
 }
 
