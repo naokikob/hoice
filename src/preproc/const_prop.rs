@@ -52,13 +52,13 @@ impl RedStrat for ConstProp {
             if self.implication_invariant_condition(instance, pred_idx)
                 && self.rhs_constant_condition(instance, pred_idx)
             {
-                let const_conditions = self.constant_conditions(instance, pred_idx);
-                // add constant conditions to clauses
-                for (cls_idx, cst_conds) in const_conditions {
-                    for cond in cst_conds {
-                        instance[cls_idx].insert_term(cond);
-                    }
-                }
+                const_conditions.extend(self.generate_constant_conditions(instance, pred_idx));
+            }
+        }
+        // add constant conditions to clauses
+        for (cls_idx, cst_conds) in const_conditions {
+            for cond in cst_conds {
+                instance[cls_idx].insert_term(cond);
             }
         }
 
@@ -73,10 +73,8 @@ impl RedStrat for ConstProp {
             }
         }
 
-        // instance.rm_args(res)
         let redinfo = instance.rm_args(res);
         redinfo
-        // Ok(RedInfo::new())
     }
 }
 impl ConstProp {
@@ -183,7 +181,11 @@ impl ConstProp {
         self.keep[pred].len() < instance[pred].sig.len()
     }
 
-    fn constant_conditions(&mut self, instance: &Instance, pred: PrdIdx) -> ClsHMap<TermSet> {
+    fn generate_constant_conditions(
+        &mut self,
+        instance: &Instance,
+        pred: PrdIdx,
+    ) -> ClsHMap<TermSet> {
         let mut const_conditions = ClsHMap::<TermSet>::new();
         for (var_idx, _typ) in instance[pred].sig.index_iter() {
             // this aregument is not propable
