@@ -1,7 +1,5 @@
 //! Variable elimination by Constant Propagation
 
-use rsmt2::print;
-
 /// [A Graph-Free Approach to Data-Flow Analysis][paper].
 ///
 /// [paper]: https://link.springer.com/chapter/10.1007/3-540-45937-5_6
@@ -19,8 +17,6 @@ pub struct ConstProp {
     keep: PrdMap<VarSet>,
     /// Propagated constant terms for removed predicates
     const_terms: PrdMap<VarMap<TermSet>>,
-    /// removed arguments of clauses on which propagated predicates appear
-    lhs_propable_arguments: ClsMap<PrdMap<VarMap<TermSet>>>,
 }
 
 impl RedStrat for ConstProp {
@@ -30,7 +26,6 @@ impl RedStrat for ConstProp {
     fn new(_instance: &Instance) -> Self {
         ConstProp {
             const_terms: PrdMap::new(),
-            lhs_propable_arguments: ClsMap::new(),
             keep: PrdMap::new(),
         }
     }
@@ -51,7 +46,6 @@ impl RedStrat for ConstProp {
             // TODO: proper error handling
             let both_clauses: HashSet<&ClsIdx> =
                 left_clauses.intersection(&right_clauses).collect();
-            // when intersection count is zero
             for &cls_idx in both_clauses {
                 let leftargss = &instance[cls_idx].lhs_preds()[&pred_idx];
                 let (_p, rightargs) = instance[cls_idx]
@@ -182,7 +176,7 @@ impl RedStrat for ConstProp {
 }
 impl ConstProp {
     #[allow(dead_code)]
-    fn print(&mut self, instance: &Instance) {
+    fn print(&self, instance: &Instance) {
         println!("keep {{");
         for (pred, vars) in self.keep.index_iter() {
             if instance[pred].is_defined() {
@@ -203,10 +197,9 @@ impl ConstProp {
 
     fn init(&mut self, instance: &Instance) {
         self.const_terms.clear();
-        self.lhs_propable_arguments.clear();
         self.keep.clear();
 
-        // Empty set for each predicate.
+        // Empty constant set for each predicate.
         for (_pred_idx, p) in instance.preds().index_iter() {
             self.keep.push(VarSet::new());
             let mut v = VarMap::new();
