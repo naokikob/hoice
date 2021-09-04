@@ -340,7 +340,7 @@ impl<'a> Reductor<'a> {
         } else {
             some_new! { FunPreds if active and fun_preds }
         };
-        let const_prop = some_new! { ConstProp if active and cfg_red };
+        let const_prop = some_new! { ConstProp if active and const_prop };
 
         Ok(Reductor {
             instance,
