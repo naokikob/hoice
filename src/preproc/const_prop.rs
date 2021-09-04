@@ -1,12 +1,13 @@
-//! Variable elimination by Constant Propagation
+//! Constant Propagation based Argument Reduction
 
-/// [A Graph-Free Approach to Data-Flow Analysis][paper].
+/// Eliminate arguments which are consistent constants on the pure-rhs clauses
 ///
-/// [paper]: https://link.springer.com/chapter/10.1007/3-540-45937-5_6
-/// (A Graph-Free Approach to Data-Flow Analysis)
-/// # TODO
-/// - define proper data structures
-/// - find dependencies between other reduction strategies
+/// # Examples
+///
+/// ```rust
+/// // See this file for a non-trivial example.
+/// ::std::fs::OpenOptions::new().read(true).open("rsc/unsat/const_prop.smt2").unwrap();
+/// ```
 use crate::{
     common::*,
     preproc::{PreInstance, RedStrat},
@@ -38,6 +39,7 @@ impl RedStrat for ConstProp {
     // TODO: add constant constraints to model
     fn apply(&mut self, instance: &mut PreInstance) -> Res<RedInfo> {
         self.init(&instance);
+        // argumnets' constant conditions to add pure lhs clauses
         let mut const_conditions = ClsHMap::<TermSet>::new();
         'all_preds: for (pred_idx, _pred) in instance.preds().index_iter() {
             // 1. check whether arguments are constant propagatable or not, per predicates
