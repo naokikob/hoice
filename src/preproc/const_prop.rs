@@ -62,6 +62,9 @@ impl RedStrat for ConstProp {
             }
         }
 
+        // to avoid trivial clauses on check in rm_args
+        instance.simplify_all();
+
         // 3. remove arguments
         // just copied from arg_red
         // TODO: make this proc outside of this function
