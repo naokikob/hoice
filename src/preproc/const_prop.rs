@@ -37,24 +37,9 @@ impl RedStrat for ConstProp {
         }
     }
 
-    // 1. check arguments are constant propagatable or not, per predicates
-    //    if it's propable, collect const_terms and left clauses' arguments
-    // 2. create and add constant constraints to lhs_terms of
-    //    propagatable arguments of predicates
-    // 3. remove arguments
     // TODO: add constant constraints to model
     fn apply(&mut self, instance: &mut PreInstance) -> Res<RedInfo> {
-        self.init(&instance);
-        // arguments' constant conditions to add pure lhs clauses
-        let mut const_conditions = ClsHMap::<TermSet>::new();
-        for (pred_idx, _pred) in instance.preds().index_iter() {
-            // 1. check if arguments are constant propagatable, per predicate
-            if self.implication_invariant_condition(instance, pred_idx)
-                && self.rhs_constant_condition(instance, pred_idx)
-            {
-                const_conditions.extend(self.generate_constant_conditions(instance, pred_idx));
-            }
-        }
+        let (const_conditions, res) = self.run(instance);
         // add constant conditions to clauses
         for (cls_idx, cst_conds) in const_conditions {
             for cond in cst_conds {
@@ -63,21 +48,10 @@ impl RedStrat for ConstProp {
         }
 
         // to avoid trivial clauses on check in rm_args
-        instance.simplify_all();
+        let mut info = instance.simplify_all()?;
 
-        // 3. remove arguments
-        // just copied from arg_red
-        // TODO: make this proc outside of this function
-        let mut res = PrdHMap::new();
-        for (pred, vars) in ::std::mem::replace(&mut self.keep, PrdMap::new()).into_index_iter() {
-            if !instance[pred].is_defined() {
-                let prev = res.insert(pred, vars);
-                debug_assert! { prev.is_none() }
-            }
-        }
-
-        let redinfo = instance.rm_args(res);
-        redinfo
+        info += instance.rm_args(res)?;
+        Ok(info)
     }
 }
 impl ConstProp {
@@ -214,5 +188,30 @@ impl ConstProp {
             }
         }
         const_conditions
+    }
+    /// Runs itself on all clauses of an instance.
+    /// 1. check arguments are constant propagatable or not, per predicates
+    ///    if it's propable, collect const_terms and left clauses' arguments
+    /// 2. create constant constraints of for each clauses
+    fn run(&mut self, instance: &Instance) -> (ClsHMap<TermSet>, PrdHMap<VarSet>) {
+        self.init(&instance);
+        // arguments' constant conditions to add pure lhs clauses
+        let mut const_conditions = ClsHMap::<TermSet>::new();
+        for (pred_idx, _pred) in instance.preds().index_iter() {
+            // 1. check if arguments are constant propagatable, per predicate
+            if self.implication_invariant_condition(instance, pred_idx)
+                && self.rhs_constant_condition(instance, pred_idx)
+            {
+                const_conditions.extend(self.generate_constant_conditions(instance, pred_idx));
+            }
+        }
+        let mut res = PrdHMap::new();
+        for (pred, vars) in ::std::mem::replace(&mut self.keep, PrdMap::new()).into_index_iter() {
+            if !instance[pred].is_defined() {
+                let prev = res.insert(pred, vars);
+                debug_assert! { prev.is_none() }
+            }
+        }
+        (const_conditions, res)
     }
 }
