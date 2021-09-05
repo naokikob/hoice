@@ -8,7 +8,7 @@
 /// # Examples
 ///
 /// ```rust
-/// // See this file for a non-trivial example.
+/// // See this file for a example.
 /// ::std::fs::OpenOptions::new().read(true).open("rsc/unsat/const_prop.smt2").unwrap();
 /// ```
 /// # TODO
@@ -39,8 +39,8 @@ impl RedStrat for ConstProp {
 
     // TODO: add constant constraints to model
     fn apply(&mut self, instance: &mut PreInstance) -> Res<RedInfo> {
-        let (const_conditions, res) = self.run(instance);
-        // add constant conditions to clauses
+        let (const_conditions, to_keep) = self.run(instance);
+        // add constant conditions to corresponding clauses
         for (cls_idx, cst_conds) in const_conditions {
             for cond in cst_conds {
                 instance[cls_idx].insert_term(cond);
@@ -50,7 +50,10 @@ impl RedStrat for ConstProp {
         // to avoid trivial clauses on check in rm_args
         let mut info = instance.simplify_all()?;
 
-        info += instance.rm_args(res)?;
+        info += instance.rm_args(to_keep)?;
+        // for clause in instance.clauses() {
+        //     eprintln!("{}", clause.to_string_info(&instance.preds()).unwrap());
+        // }
         Ok(info)
     }
 }
