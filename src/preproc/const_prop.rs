@@ -51,9 +51,9 @@ impl RedStrat for ConstProp {
         let mut info = instance.simplify_all()?;
 
         info += instance.rm_args(to_keep)?;
-        // for clause in instance.clauses() {
-        //     eprintln!("{}", clause.to_string_info(&instance.preds()).unwrap());
-        // }
+        for clause in instance.clauses() {
+            eprintln!("{}", clause.to_string_info(&instance.preds()).unwrap());
+        }
         Ok(info)
     }
 }
@@ -177,6 +177,7 @@ impl ConstProp {
             for &cls_idx in instance
                 .lhs_clauses_of(pred)
                 .difference(&instance.rhs_clauses_of(pred))
+            // TODO: theoretically it is better to add all lhs clauses, but that fails to solve some cases
             {
                 let leftargss = &instance[cls_idx].lhs_preds()[&pred];
                 let mut cst_conds = TermSet::new();
