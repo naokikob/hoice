@@ -51,33 +51,15 @@ impl RedStrat for ConstProp {
         let mut info = instance.simplify_all()?;
 
         info += instance.rm_args(to_keep)?;
-        for clause in instance.clauses() {
-            eprintln!("{}", clause.to_string_info(&instance.preds()).unwrap());
-        }
+
+        // for clause in instance.clauses() {
+        //     eprintln!("{}", clause.to_string_info(&instance.preds()).unwrap());
+        // }
+
         Ok(info)
     }
 }
 impl ConstProp {
-    #[allow(dead_code)]
-    fn print(&self, instance: &Instance) {
-        println!("keep {{");
-        for (pred, vars) in self.keep.index_iter() {
-            if instance[pred].is_defined() {
-                continue;
-            }
-            print!("  {}:", instance[pred]);
-            for var in vars {
-                print!(" {},", var.default_str())
-            }
-            println!()
-        }
-        // println!("}} clauses {{") ;
-        // for (idx, _) in instance.clauses().index_iter() {
-
-        // }
-        println!("}}")
-    }
-
     /// Initializes itself from an instance.
     fn init(&mut self, instance: &Instance) {
         self.const_terms.clear();
