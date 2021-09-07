@@ -1317,6 +1317,18 @@ impl Instance {
         fun::write_for_model(w, pref, &model)?;
 
         for defs in model {
+            // TODO: Add constant conditions by better way
+            let defs: &Vec<(PrdIdx, Vec<TTerms>)> = &defs
+                .clone()
+                .into_iter()
+                .map(|(pred, mut tterms)| {
+                    if let Some(cst_conds) = self[pred].const_conditions() {
+                        tterms.push(TTerms::conj(None, cst_conds.clone()));
+                    }
+                    (pred, tterms)
+                })
+                .collect();
+
             if defs.is_empty() {
                 ()
             } else if defs.len() == 1 {
