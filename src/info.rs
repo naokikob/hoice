@@ -95,7 +95,7 @@ pub struct Pred {
     /// be given to the user before giving the definition for this predicate.
     funs: Vec<Fun>,
     /// Constant conditions to add
-    const_conditions: Option<Vec<Term>>,
+    const_conditions: Option<TTermSet>,
 }
 
 impl Pred {
@@ -253,6 +253,12 @@ impl Pred {
     /// before giving the definition for this predicate.
     pub fn funs(&self) -> &[Fun] {
         &self.funs
+    }
+
+    /// Constant conditions added by preprocess const_prop.
+    ///
+    pub fn const_conditions(&self) -> &Option<TTermSet> {
+        &self.const_conditions
     }
 
     /// A variable that does not appear in the **original** signature of the predicate.
@@ -454,9 +460,11 @@ impl Pred {
     /// Adds a companion function.
     pub fn add_const_condition(&mut self, cst_cond: Term) {
         if let Some(ref mut conds) = self.const_conditions {
-            conds.push(cst_cond)
+            conds.insert_term(cst_cond);
         } else {
-            self.const_conditions = Some(vec![cst_cond])
+            let mut conds = TTermSet::new();
+            conds.insert_term(cst_cond);
+            self.const_conditions = Some(conds);
         }
     }
 
