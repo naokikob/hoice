@@ -46,6 +46,26 @@ impl RedStrat for ConstProp {
                 instance[cls_idx].insert_term(cond);
             }
         }
+        for (pred, cnst_term_map) in self.const_terms.index_iter() {
+            for (var, cnst_terms) in cnst_term_map.index_iter() {
+                if cnst_terms.len() == 0 {
+                    continue;
+                }
+
+                // get original varidx
+                let original_var = instance[pred].original_sig_map()[var];
+                let original_var_term = term::var(
+                    *original_var,
+                    instance[pred].original_sig()[original_var].clone(),
+                );
+                // current implimentation guarantees cnst_terms' length is 1
+                debug_assert!(cnst_terms.len() == 1);
+                for cnst in cnst_terms {
+                    instance[pred]
+                        .add_const_condition(term::eq(original_var_term.clone(), cnst.clone()));
+                }
+            }
+        }
 
         // to avoid trivial clauses on check in rm_args
         let mut info = instance.simplify_all()?;
