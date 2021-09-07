@@ -1682,6 +1682,11 @@ impl ::std::ops::Index<PrdIdx> for Instance {
         &self.preds[index]
     }
 }
+impl ::std::ops::IndexMut<PrdIdx> for Instance {
+    fn index_mut(&mut self, index: PrdIdx) -> &mut Pred {
+        &mut self.preds[index]
+    }
+}
 impl ::std::ops::Index<ClsIdx> for Instance {
     type Output = Clause;
     fn index(&self, index: ClsIdx) -> &Clause {
