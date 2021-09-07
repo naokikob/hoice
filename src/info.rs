@@ -94,6 +94,8 @@ pub struct Pred {
     /// Companion functions. Function that were created specifically for this predicate, and must
     /// be given to the user before giving the definition for this predicate.
     funs: Vec<Fun>,
+    /// Constant conditions to add
+    const_conditions: Option<Vec<Term>>,
 }
 
 impl Pred {
@@ -112,6 +114,7 @@ impl Pred {
             def: None,
             strength: None,
             funs: vec![],
+            const_conditions: None,
         }
     }
 
@@ -446,6 +449,15 @@ impl Pred {
     /// Adds a companion function.
     pub fn add_fun(&mut self, fun: Fun) {
         self.funs.push(fun)
+    }
+
+    /// Adds a companion function.
+    pub fn add_const_condition(&mut self, cst_cond: Term) {
+        if let Some(ref mut conds) = self.const_conditions {
+            conds.push(cst_cond)
+        } else {
+            self.const_conditions = Some(vec![cst_cond])
+        }
     }
 
     /// Finalizes the predicate information.
