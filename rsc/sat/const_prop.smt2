@@ -16,7 +16,7 @@
     (forall
         ( (x Int) (y Int) )
         ( =>
-            (p x (+ x y))
+            (and (p x (+ x y)) (> x y))
             (p (+ x 1) (+ x y))
         )
     )
