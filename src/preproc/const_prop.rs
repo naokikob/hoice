@@ -40,6 +40,7 @@ impl RedStrat for ConstProp {
     // TODO: add constant constraints to model
     fn apply(&mut self, instance: &mut PreInstance) -> Res<RedInfo> {
         let (const_conditions, to_keep) = self.run(instance);
+        // eprintln!("to_keep = \n{:#?}", to_keep);
         // add constant conditions to corresponding clauses
         for (cls_idx, cst_conds) in const_conditions {
             for cond in cst_conds {
@@ -48,7 +49,10 @@ impl RedStrat for ConstProp {
         }
         for (pred, cnst_term_map) in self.const_terms.index_iter() {
             for (var, cnst_terms) in cnst_term_map.index_iter() {
-                if cnst_terms.len() == 0 {
+                // TODO: more elaborate condition
+                if cnst_terms.len() == 0
+                    || (to_keep.contains_key(&pred) && to_keep[&pred].contains(&var))
+                {
                     continue;
                 }
 
@@ -59,7 +63,13 @@ impl RedStrat for ConstProp {
                     instance[pred].original_sig()[original_var].clone(),
                 );
                 // current implimentation guarantees cnst_terms' length is 1
-                debug_assert!(cnst_terms.len() == 1);
+                debug_assert!(
+                    cnst_terms.len() == 1,
+                    "pred{} var{} const_terms{:#?}",
+                    pred,
+                    var,
+                    cnst_terms
+                );
                 for cnst in cnst_terms {
                     instance[pred]
                         .add_const_condition(term::eq(original_var_term.clone(), cnst.clone()));
@@ -214,6 +224,7 @@ impl ConstProp {
         let mut res = PrdHMap::new();
         for (pred, vars) in ::std::mem::replace(&mut self.keep, PrdMap::new()).into_index_iter() {
             if !instance[pred].is_defined() {
+                eprintln!("{:#?} id not defined", pred);
                 let prev = res.insert(pred, vars);
                 debug_assert! { prev.is_none() }
             }
