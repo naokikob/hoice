@@ -224,7 +224,7 @@ impl ConstProp {
         let mut res = PrdHMap::new();
         for (pred, vars) in ::std::mem::replace(&mut self.keep, PrdMap::new()).into_index_iter() {
             if !instance[pred].is_defined() {
-                eprintln!("{:#?} id not defined", pred);
+                // eprintln!("{:#?} id not defined", pred);
                 let prev = res.insert(pred, vars);
                 debug_assert! { prev.is_none() }
             }
