@@ -9,7 +9,7 @@
 ///
 /// ```rust
 /// // See this file for a example.
-/// ::std::fs::OpenOptions::new().read(true).open("rsc/unsat/const_prop.smt2").unwrap();
+/// ::std::fs::OpenOptions::new().read(true).open("rsc/sat/const_prop.smt2").unwrap();
 /// ```
 /// # TODO
 /// - check the soundness
@@ -58,10 +58,6 @@ impl RedStrat for ConstProp {
 
                 // get original varidx
                 let original_var = instance[pred].original_sig_map()[var];
-                let original_var_term = term::var(
-                    *original_var,
-                    instance[pred].original_sig()[original_var].clone(),
-                );
                 // current implimentation guarantees cnst_terms' length is 1
                 debug_assert!(
                     cnst_terms.len() == 1,
@@ -71,8 +67,7 @@ impl RedStrat for ConstProp {
                     cnst_terms
                 );
                 for cnst in cnst_terms {
-                    instance[pred]
-                        .add_const_condition(term::eq(original_var_term.clone(), cnst.clone()));
+                    instance[pred].add_const_condition(original_var, cnst.clone());
                 }
             }
         }
