@@ -465,17 +465,28 @@ impl Instance {
                 let pred = &self[pred];
                 write!(w, "({}", pred)?;
                 let mut prev: VarIdx = 0.into();
+
                 for (var, arg) in args.index_iter() {
                     let old_var = pred.original_sig_map()[var];
                     for var in VarRange::new(prev, old_var) {
-                        write!(w, " {}", pred.original_sig()[var].default_val())?
+                        let v = if let Some(cnst) = pred.const_args_of(var) {
+                            cnst.val().expect("non-constant term is in const_args")
+                        } else {
+                            pred.original_sig()[var].default_val()
+                        };
+                        write!(w, " {}", v)?
                     }
                     prev = old_var;
                     prev.inc();
                     write!(w, " {}", arg)?
                 }
                 for var in VarRange::new(prev, pred.original_sig().next_index()) {
-                    write!(w, " {}", pred.original_sig()[var].default_val())?
+                    let v = if let Some(cnst) = pred.const_args_of(var) {
+                        cnst.val().expect("non-constant term is in const_args")
+                    } else {
+                        pred.original_sig()[var].default_val()
+                    };
+                    write!(w, " {}", v)?
                 }
                 write!(w, ")")
             },
@@ -1322,9 +1333,18 @@ impl Instance {
                 .clone()
                 .into_iter()
                 .map(|(pred, mut tterms)| {
-                    if let Some(cst_conds) = self[pred].const_conditions() {
+                    let mut cst_conds = TTermSet::new();
+                    for (original_var, ty) in self[pred].original_sig().index_iter() {
+                        if let Some(cnst) = self[pred].const_args_of(original_var) {
+                            let original_var_term = term::var(*original_var, ty.clone());
+                            cst_conds
+                                .insert_term(term::eq(original_var_term.clone(), cnst.clone()));
+                        }
+                    }
+                    if cst_conds.len() != 0 {
                         tterms.push(TTerms::conj(None, cst_conds.clone()));
                     }
+
                     (pred, tterms)
                 })
                 .collect();
