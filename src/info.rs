@@ -95,7 +95,7 @@ pub struct Pred {
     /// be given to the user before giving the definition for this predicate.
     funs: Vec<Fun>,
     /// Constant conditions to add
-    const_conditions: Option<TTermSet>,
+    const_args: VarHMap<Term>,
 }
 
 impl Pred {
@@ -114,7 +114,7 @@ impl Pred {
             def: None,
             strength: None,
             funs: vec![],
-            const_conditions: None,
+            const_args: VarHMap::new(),
         }
     }
 
@@ -255,10 +255,10 @@ impl Pred {
         &self.funs
     }
 
-    /// Constant conditions added by preprocess const_prop.
+    /// Get constant terms of given argument if exists
     ///
-    pub fn const_conditions(&self) -> &Option<TTermSet> {
-        &self.const_conditions
+    pub fn const_args_of(&self, var: VarIdx) -> Option<&Term> {
+        self.const_args.get(&var)
     }
 
     /// A variable that does not appear in the **original** signature of the predicate.
@@ -457,15 +457,17 @@ impl Pred {
         self.funs.push(fun)
     }
 
-    /// Adds a companion function.
-    pub fn add_const_condition(&mut self, cst_cond: Term) {
-        if let Some(ref mut conds) = self.const_conditions {
-            conds.insert_term(cst_cond);
-        } else {
-            let mut conds = TTermSet::new();
-            conds.insert_term(cst_cond);
-            self.const_conditions = Some(conds);
+    /// Adds a constant condition.
+    pub fn add_const_condition(&mut self, original_var: VarIdx, cst_cond: Term) {
+        // exclude more than one condition
+        if self.const_args.contains_key(&original_var) {
+            panic!(
+                "more than one constant conditions{:#?} and {:#?}",
+                self.const_args[&original_var], cst_cond
+            );
         }
+
+        self.const_args.insert(original_var, cst_cond);
     }
 
     /// Finalizes the predicate information.
