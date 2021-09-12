@@ -3,7 +3,7 @@
 /// Argument Reduction by propagating consistent constants on the pure-rhs clauses.
 ///
 /// An argument of some predicate is propagatable if
-/// 1. (implication invariant condition)Expressions appears on the same argument positions are invariant on implication clauses(a predicate application appears on both sides of clause).
+/// 1. (implication invariant condition)Expressions appears on the same positions are invariant on implication clauses(a predicate application appears on both sides of clause).
 /// 2. (rhs constant condition)It is a consistent constant on all of pure-rhs clauses(a predicate application appears on only rhs of clause).
 /// # Examples
 ///
@@ -186,11 +186,7 @@ impl ConstProp {
             }
 
             // create constant conditions to add
-            for &cls_idx in instance
-                .lhs_clauses_of(pred)
-                .difference(&instance.rhs_clauses_of(pred))
-            // TODO: theoretically it is better to add all lhs clauses, but that fails to solve some cases
-            {
+            for &cls_idx in instance.lhs_clauses_of(pred) {
                 let leftargss = &instance[cls_idx].lhs_preds()[&pred];
                 let mut cst_conds = TermSet::new();
 
