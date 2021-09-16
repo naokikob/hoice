@@ -532,6 +532,21 @@ make_conf! {
             |val| bool_of_match(val)
         }
 
+        simplify, simplify: bool {
+            help "Clause-wise simplification is active.",
+            long_help "\
+                If active, clauses are simplified.
+            ",
+            long "--simplify",
+            takes_val,
+            val_name bool_format,
+            val_nb 1,
+            validator bool_validator,
+            default "on",
+        } {
+            |val| bool_of_match(val)
+        }
+
         split_strengthen, split_strengthen: bool {
             help "(De)activates strengthening when splitting is active.",
             long_help "\
@@ -820,6 +835,36 @@ make_conf! {
             val_nb 1,
         } {
             |mtch| bool_of_match(mtch)
+        }
+
+        datagen, datagen: usize {
+            help "Eager generation of positive/negative data.",
+            long_help "\
+                If active, eagerly generate positive/negative data.\
+            ",
+            long "--datagen",
+            validator int_validator,
+            val_name "int",
+            default "0",
+            takes_val,
+            val_nb 1,
+        } {
+            |mtch| int_of_match(mtch)
+        }
+
+        datafile, datafile: String {
+            help "Specify data file.",
+            long_help "\
+                Specify data file.\
+            ",
+            long "--datafile",
+//            validator bool_validator,
+            val_name "string",
+            default "default.dat",
+            takes_val,
+            val_nb 1,
+        } {
+            |mtch| mtch.to_string()
         }
 
         gain_pivot, gain_pivot: f64 {

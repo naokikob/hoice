@@ -51,7 +51,7 @@ pub fn work(instance: &mut Instance, profiler: &Profiler) -> Res<()> {
             PreInstance::new(instance) ?
           } "preproc", "pre-instance creation"
         };
-        run(instance, profiler, true)
+        run(instance, profiler, conf.preproc.simplify)
     };
     finalize(res, instance, profiler)
 }
