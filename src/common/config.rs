@@ -12,7 +12,7 @@ use rsmt2::SmtConf as SolverConf;
 
 use crate::{common::mk_dir, errors::*, instance::Instance};
 
-/// Creates a function adding arguments to a `::clap::App`.
+/// Creates a function adding arguments to a `clap::App`.
 macro_rules! app_fun {
     // Internal rules.
     (@app $app:expr, $order:expr =>) => ($app);
@@ -25,7 +25,7 @@ macro_rules! app_fun {
         $id:ident($($stuff:tt)*) $($tail:tt)*
     ) => ({
         let arg = app_fun!(
-            @arg Arg::with_name(stringify!($id)).display_order(*$order) => $($stuff)*
+            @arg Arg::new(stringify!($id)).display_order(*$order) => $($stuff)*
         );
         *$order += 1;
         let app = $app.arg(arg);
@@ -59,8 +59,8 @@ macro_rules! app_fun {
     (@arg $arg:expr => val_nb $val_nb:expr, $($stuff:tt)*) => (
         app_fun!(@arg $arg.number_of_values($val_nb) => $($stuff)*)
     );
-    (@arg $arg:expr => hidden, $($stuff:tt)*) => (
-        app_fun!(@arg $arg.hidden(true) => $($stuff)*)
+    (@arg $arg:expr => hide, $($stuff:tt)*) => (
+        app_fun!(@arg $arg.hide(true) => $($stuff)*)
     );
     (@arg $arg:expr => $(,)*) => ($arg);
     (@arg $arg:expr => $stuff:tt) => (
@@ -90,7 +90,7 @@ macro_rules! make_conf {
             long_help $long_help:expr,
             $($tail:tt)*
         } {
-            |$mtch:pat| $field_do:expr
+            |$mtch:ident| $field_do:expr
         }
     )*}
 
@@ -137,9 +137,9 @@ macro_rules! make_conf {
 }
 
 /// Clap `App` with static lifetimes.
-pub type App = ::clap::App<'static, 'static>;
+pub type App = clap::Command<'static>;
 /// Clap `ArgMatches` with static lifetime.
-pub type Matches = ::clap::ArgMatches<'static>;
+pub type Matches = clap::ArgMatches;
 
 /// Functions all sub-configurations must have.
 pub trait SubConf {
@@ -352,7 +352,7 @@ make_conf! {
             val_nb 1,
             validator bool_validator,
             default "on",
-            hidden,
+            hide,
         } {
             |val| bool_of_match(val)
         }
@@ -385,7 +385,7 @@ make_conf! {
             val_nb 1,
             validator bool_validator,
             default "no",
-            hidden,
+            hide,
         } {
             |val| bool_of_match(val)
         }
@@ -403,7 +403,7 @@ make_conf! {
             val_nb 1,
             validator bool_validator,
             default "on",
-            hidden,
+            hide,
         } {
             |val| bool_of_match(val)
         }
@@ -421,7 +421,7 @@ make_conf! {
             val_nb 1,
             validator bool_validator,
             default "on",
-            hidden,
+            hide,
         } {
             |val| bool_of_match(val)
         }
@@ -439,7 +439,7 @@ make_conf! {
             val_nb 1,
             validator bool_validator,
             default "on",
-            hidden,
+            hide,
         } {
             |val| bool_of_match(val)
         }
@@ -457,7 +457,7 @@ make_conf! {
             val_nb 1,
             validator bool_validator,
             default "on",
-            hidden,
+            hide,
         } {
             |val| bool_of_match(val)
         }
@@ -491,7 +491,7 @@ make_conf! {
             val_nb 1,
             validator bool_validator,
             default "off",
-            hidden,
+            hide,
         } {
             |val| bool_of_match(val)
         }
@@ -509,7 +509,7 @@ make_conf! {
             val_nb 1,
             validator bool_validator,
             default "on",
-            hidden,
+            hide,
         } {
             |val| bool_of_match(val)
         }
@@ -527,7 +527,7 @@ make_conf! {
             val_nb 1,
             validator bool_validator,
             default "on",
-            hidden,
+            hide,
         } {
             |val| bool_of_match(val)
         }
@@ -595,7 +595,7 @@ make_conf! {
             val_nb 1,
             validator bool_validator,
             default "on",
-            hidden,
+            hide,
         } {
             |val| bool_of_match(val)
         }
@@ -612,7 +612,7 @@ make_conf! {
             val_nb 1,
             validator bool_validator,
             default "on",
-            hidden,
+            hide,
         } {
             |val| bool_of_match(val)
         }
@@ -754,7 +754,7 @@ make_conf! {
             default "40",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| {
                 let value = int_of_match(mtch) as f64 / 100.;
@@ -781,7 +781,7 @@ make_conf! {
             default "on",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| bool_of_match(mtch)
         }
@@ -882,7 +882,7 @@ make_conf! {
             default "10",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| {
                 let value = int_of_match(mtch) as f64 / 100.0;
@@ -908,7 +908,7 @@ make_conf! {
             default "10",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| {
                 let value = int_of_match(mtch) as f64 / 100.0;
@@ -934,7 +934,7 @@ make_conf! {
             default "0",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| {
                 let value = int_of_match(mtch) as f64 / 100.0;
@@ -960,7 +960,7 @@ make_conf! {
                 default "100000",
                 takes_val,
                 val_nb 1,
-                hidden,
+                hide,
         } {
             |mtch| int_of_match(mtch)
         }
@@ -978,7 +978,7 @@ make_conf! {
             default "no",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| bool_of_match(mtch)
         }
@@ -995,7 +995,7 @@ make_conf! {
             default "on",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| bool_of_match(mtch)
         }
@@ -1012,7 +1012,7 @@ make_conf! {
             default "on",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| bool_of_match(mtch)
         }
@@ -1029,7 +1029,7 @@ make_conf! {
             default "off",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| bool_of_match(mtch)
         }
@@ -1046,7 +1046,7 @@ make_conf! {
             default "off",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| bool_of_match(mtch)
         }
@@ -1124,7 +1124,7 @@ make_conf! {
             default "off",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| bool_of_match(mtch)
         }
@@ -1158,7 +1158,7 @@ make_conf! {
             default "off",
             takes_val,
             val_nb 1,
-            hidden,
+            hide,
         } {
             |mtch| bool_of_match(mtch)
         }
@@ -1367,31 +1367,31 @@ impl Config {
             .version(*crate::common::version)
             .about("ICE engine for systems described as Horn Clauses.")
             .arg(
-                Arg::with_name("input file")
+                Arg::new("input file")
                     .help("sets the input file to use")
                     .index(1)
                     .display_order(order()),
             )
             .arg(
-                Arg::with_name("verb")
-                    .short("-v")
+                Arg::new("verb")
+                    .short('v')
                     .help("increases verbosity")
                     .takes_value(false)
-                    .multiple(true)
+                    .multiple_occurrences(true)
                     .display_order(order()),
             )
             .arg(
-                Arg::with_name("quiet")
-                    .short("-q")
+                Arg::new("quiet")
+                    .short('q')
                     .help("decreases verbosity")
                     .takes_value(false)
-                    .multiple(true)
+                    .multiple_occurrences(true)
                     .display_order(order()),
             )
             .arg(
-                Arg::with_name("color")
+                Arg::new("color")
                     .long("--color")
-                    .short("-c")
+                    .short('c')
                     .help("(de)activates coloring (off if output is not a tty)")
                     .validator(bool_validator)
                     .value_name(bool_format)
@@ -1401,9 +1401,9 @@ impl Config {
                     .display_order(order()),
             )
             .arg(
-                Arg::with_name("out_dir")
+                Arg::new("out_dir")
                     .long("--out_dir")
-                    .short("-o")
+                    .short('o')
                     .help("sets the output directory")
                     .value_name("DIR")
                     .default_value("hoice_out")
@@ -1412,9 +1412,9 @@ impl Config {
                     .display_order(order()),
             )
             .arg(
-                Arg::with_name("stats")
+                Arg::new("stats")
                     .long("--stats")
-                    .short("-s")
+                    .short('s')
                     .help("reports some statistics at the end of the run")
                     .validator(bool_validator)
                     .value_name(bool_format)
@@ -1424,9 +1424,9 @@ impl Config {
                     .display_order(order()),
             )
             .arg(
-                Arg::with_name("infer")
+                Arg::new("infer")
                     .long("--infer")
-                    .short("-i")
+                    .short('i')
                     .help("if `off`, ignore `check-sat` and `get-model` queries")
                     .validator(bool_validator)
                     .value_name(bool_format)
@@ -1436,9 +1436,9 @@ impl Config {
                     .display_order(order()),
             )
             .arg(
-                Arg::with_name("timeout")
+                Arg::new("timeout")
                     .long("--timeout")
-                    .short("-t")
+                    .short('t')
                     .help("sets a timeout in seconds, `0` for none")
                     .validator(int_validator)
                     .value_name("int")
@@ -1448,7 +1448,7 @@ impl Config {
                     .display_order(order()),
             )
             .arg(
-                Arg::with_name("split")
+                Arg::new("split")
                     .long("--split")
                     .help("reason on each negative clause separately")
                     .validator(bool_validator)
@@ -1459,7 +1459,7 @@ impl Config {
                     .display_order(order()),
             )
             .arg(
-                Arg::with_name("split_step")
+                Arg::new("split_step")
                     .long("--split_step")
                     .help("pause between negative clauses in split mode")
                     .validator(bool_validator)
@@ -1470,7 +1470,7 @@ impl Config {
                     .display_order(order()),
             )
             .arg(
-                Arg::with_name("term_simpl")
+                Arg::new("term_simpl")
                     .long("--term_simpl")
                     .help("level of term simplification between 0 and 3")
                     .validator(int_validator)
@@ -1479,10 +1479,10 @@ impl Config {
                     .takes_value(true)
                     .number_of_values(1)
                     .display_order(order())
-                    .hidden(true),
+                    .hide(true),
             )
             .arg(
-                Arg::with_name("check_simpl")
+                Arg::new("check_simpl")
                     .long("--check_simpl")
                     .help("if true, check all simplifications")
                     .validator(bool_validator)
@@ -1491,7 +1491,7 @@ impl Config {
                     .takes_value(true)
                     .number_of_values(1)
                     .display_order(order())
-                    .hidden(true),
+                    .hide(true),
             )
     }
 
@@ -1503,7 +1503,7 @@ impl Config {
         };
 
         app.arg(
-            Arg::with_name("check")
+            Arg::new("check")
                 .long("--check")
                 .help("checks a model for the input system (does not run inference)")
                 .value_name("FILE")
@@ -1512,7 +1512,7 @@ impl Config {
                 .display_order(order()),
         )
         .arg(
-            Arg::with_name("check_eld")
+            Arg::new("check_eld")
                 .long("--check_eld")
                 .help("if `check` is active, expect eldarica-style result")
                 .validator(bool_validator)
@@ -1649,9 +1649,9 @@ pub fn int_of_matches(matches: &Matches, key: &str) -> usize {
 
 /// Validates integer input.
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
-pub fn int_validator(s: String) -> Result<(), String> {
+pub fn int_validator(s: &str) -> Result<(), String> {
     use std::str::FromStr;
-    match usize::from_str(&s) {
+    match usize::from_str(s) {
         Ok(_) => Ok(()),
         Err(_) => Err(format!("expected an integer, got `{}`", s)),
     }
@@ -1678,8 +1678,8 @@ pub fn bounded_int_validator(s: String, lo: usize, hi: usize) -> Result<(), Stri
 
 /// Validates boolean input.
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
-pub fn bool_validator(s: String) -> Result<(), String> {
-    if bool_of_str(&s).is_some() {
+pub fn bool_validator(s: &str) -> Result<(), String> {
+    if bool_of_str(s).is_some() {
         Ok(())
     } else {
         Err(format!("expected `on/true` or `off/false`, got `{}`", s))
